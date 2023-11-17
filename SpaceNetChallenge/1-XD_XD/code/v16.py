@@ -53,11 +53,11 @@ LOGFORMAT = '%(asctime)s %(levelname)s %(message)s'
 BASE_DIR = "/data/train"  # train data
 BASE_TEST_DIR = "/data/test"  # test data
 WORKING_DIR = "/data/working"
-IMAGE_DIR = "/data/working/images/{}".format('v16')
-V12_IMAGE_DIR = "/data/working/images/{}".format('v12')  # for mask and mul
-V5_IMAGE_DIR = "/data/working/images/{}".format('v5')
-MODEL_DIR = "/data/working/models/{}".format(MODEL_NAME)
-FN_SOLUTION_CSV = "/data/output/{}.csv".format(MODEL_NAME)
+IMAGE_DIR = '/data/working/images/v16'
+V12_IMAGE_DIR = '/data/working/images/v12'
+V5_IMAGE_DIR = '/data/working/images/v5'
+MODEL_DIR = f"/data/working/models/{MODEL_NAME}"
+FN_SOLUTION_CSV = f"/data/output/{MODEL_NAME}.csv"
 
 # ---------------------------------------------------------
 # Parameters
@@ -153,7 +153,7 @@ warnings.simplefilter("ignore", FutureWarning)
 handler = StreamHandler()
 handler.setLevel(INFO)
 handler.setFormatter(Formatter('%(asctime)s %(levelname)s %(message)s'))
-fh_handler = FileHandler(".{}.log".format(MODEL_NAME))
+fh_handler = FileHandler(f".{MODEL_NAME}.log")
 fh_handler.setFormatter(Formatter('%(asctime)s %(levelname)s %(message)s'))
 logger = getLogger(__name__)
 logger.setLevel(INFO)
@@ -227,7 +227,7 @@ def _calc_fscore_per_aoi(area_id):
         stderr=subprocess.PIPE,
     )
     stdout_data, stderr_data = proc.communicate()
-    lines = [line for line in stdout_data.decode('utf8').split('\n')[-10:]]
+    lines = list(stdout_data.decode('utf8').split('\n')[-10:])
 
     """
 Overall F-score : 0.85029
@@ -323,11 +323,10 @@ def _get_model_parameter(area_id):
         ascending=False,
     ).iloc[0]
 
-    param = dict(
+    return dict(
         fn_epoch=int(best_row['zero_base_epoch']),
         min_poly_area=int(best_row['min_area_th']),
     )
-    return param
 
 
 def _internal_test_predict_best_param(area_id,
@@ -338,7 +337,7 @@ def _internal_test_predict_best_param(area_id,
     min_th = param['min_poly_area']
 
     # Prediction phase
-    logger.info("Prediction phase: {}".format(prefix))
+    logger.info(f"Prediction phase: {prefix}")
 
     dict_n_osm_layers = {
         2: 4,
@@ -432,23 +431,16 @@ def _internal_test(area_id, enable_tqdm=False):
                     line = _remove_interiors(line)
                     f.write(line)
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
 
 def _internal_validate_predict_best_param(area_id,
                                           enable_tqdm=False):
     param = _get_model_parameter(area_id)
     epoch = param['fn_epoch']
-    y_pred = _internal_validate_predict(
-        area_id,
-        epoch=epoch,
-        save_pred=False,
-        enable_tqdm=enable_tqdm)
-
-    return y_pred
+    return _internal_validate_predict(
+        area_id, epoch=epoch, save_pred=False, enable_tqdm=enable_tqdm
+    )
 
 
 def _internal_validate_predict(area_id,
@@ -568,10 +560,7 @@ def _internal_validate_fscore_wo_pred_file(area_id,
                     line = _remove_interiors(line)
                     f.write(line)
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
     # ------------------------
     # Validation solution file
@@ -656,10 +645,7 @@ def _internal_validate_fscore(area_id,
                     line = _remove_interiors(line)
                     f.write(line)
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
     # ------------------------
     # Validation solution file
@@ -702,10 +688,7 @@ def mask_to_poly(mask, min_polygon_area_th=MIN_POLYGON_AREA):
             'poly': [mp],
         })
     else:
-        df = pd.DataFrame({
-            'area_size': [p.area for p in mp],
-            'poly': [p for p in mp],
-        })
+        df = pd.DataFrame({'area_size': [p.area for p in mp], 'poly': list(mp)})
 
     df = df[df.area_size > min_polygon_area_th].sort_values(
         by='area_size', ascending=False)
@@ -971,8 +954,7 @@ def __load_band_cut_th(band_fn, bandsz=3):
     for area_id, row in df.iterrows():
         for chan_i in range(bandsz):
             all_band_cut_th[area_id][chan_i] = dict(
-                min=row['chan{}_min'.format(chan_i)],
-                max=row['chan{}_max'.format(chan_i)],
+                min=row[f'chan{chan_i}_min'], max=row[f'chan{chan_i}_max']
             )
     return all_band_cut_th
 
@@ -1048,16 +1030,13 @@ def get_train_image_path_from_imageid(image_id, datapath, mul=False):
 
 
 def image_id_to_prefix(image_id):
-    prefix = image_id.split('img')[0][:-1]
-    return prefix
+    return image_id.split('img')[0][:-1]
 
 
 def load_train_summary_data(area_id):
     prefix = area_id_to_prefix(area_id)
     fn = FMT_TRAIN_SUMMARY_PATH.format(prefix=prefix)
-    df = pd.read_csv(fn)
-    # df.loc[:, 'ImageId'] = df.ImageId.str[4:]
-    return df
+    return pd.read_csv(fn)
 
 
 def split_val_train_test(area_id):
@@ -1165,8 +1144,7 @@ def get_mapzen_osm_name(area_id):
         4: 'shanghai_china_osm',
         5: 'ex_s2cCo6gpCXAvihWVygCAfSjNVksnQ_osm',
     }
-    mapzen_name = area_id_to_mapzen_name[area_id]
-    return mapzen_name
+    return area_id_to_mapzen_name[area_id]
 
 
 def extract_buildings_geoms(area_id):
@@ -1175,12 +1153,11 @@ def extract_buildings_geoms(area_id):
     with open(fn_osm, 'rb') as f:
         osm = pickle.load(f)
 
-    geoms = [
+    return [
         geom
         for geom, type_name, properties in osm['buildings']
         if type_name == 'area'
     ]
-    return geoms
 
 
 def extract_waterarea_geoms(area_id):
@@ -1189,12 +1166,11 @@ def extract_waterarea_geoms(area_id):
     with open(fn_osm, 'rb') as f:
         osm = pickle.load(f)
 
-    geoms = [
+    return [
         geom
         for geom, type_name, properties in osm['waterareas']
         if type_name == 'area'
     ]
-    return geoms
 
 
 def extract_landusages_industrial_geoms(area_id):
@@ -1203,12 +1179,11 @@ def extract_landusages_industrial_geoms(area_id):
     with open(fn_osm, 'rb') as f:
         osm = pickle.load(f)
 
-    geoms = [
+    return [
         geom
         for geom, type_name, properties in osm['landusages']
         if type_name == 'area' and properties['type'] == 'industrial'
     ]
-    return geoms
 
 
 def extract_landusages_farm_and_forest_geoms(area_id):
@@ -1217,15 +1192,16 @@ def extract_landusages_farm_and_forest_geoms(area_id):
     with open(fn_osm, 'rb') as f:
         osm = pickle.load(f)
 
-    geoms = [
+    return [
         geom
         for geom, type_name, properties in osm['landusages']
-        if type_name == 'area' and properties['type'] in [
+        if type_name == 'area'
+        and properties['type']
+        in [
             'forest',
             'farmyard',
         ]
     ]
-    return geoms
 
 
 def extract_landusages_residential_geoms(area_id):
@@ -1234,12 +1210,11 @@ def extract_landusages_residential_geoms(area_id):
     with open(fn_osm, 'rb') as f:
         osm = pickle.load(f)
 
-    geoms = [
+    return [
         geom
         for geom, type_name, properties in osm['landusages']
         if type_name == 'area' and properties['type'] == 'residential'
     ]
-    return geoms
 
 
 def extract_roads_geoms(area_id):
@@ -1248,12 +1223,11 @@ def extract_roads_geoms(area_id):
     with open(fn_osm, 'rb') as f:
         osm = pickle.load(f)
 
-    geoms = [
+    return [
         geom
         for geom, type_name, properties in osm['roads']
         if type_name == 'line' and properties['type'] != 'subway'
     ]
-    return geoms
 
 
 def extract_osmlayers(area_id):
@@ -1272,14 +1246,7 @@ def extract_osmlayers(area_id):
             extract_landusages_residential_geoms(area_id),
             extract_roads_geoms(area_id),
         ]
-    elif area_id == 4:
-        return [
-            extract_waterarea_geoms(area_id),
-            extract_landusages_industrial_geoms(area_id),
-            extract_landusages_residential_geoms(area_id),
-            extract_roads_geoms(area_id),
-        ]
-    elif area_id == 5:
+    elif area_id in [4, 5]:
         return [
             extract_waterarea_geoms(area_id),
             extract_landusages_industrial_geoms(area_id),
@@ -1293,7 +1260,7 @@ def extract_osmlayers(area_id):
 
 def prep_osmlayer_test(area_id, datapath):
     prefix = area_id_to_prefix(area_id)
-    logger.info("prep_osmlayer_test for {}".format(prefix))
+    logger.info(f"prep_osmlayer_test for {prefix}")
 
     fn_list = FMT_TEST_IMAGELIST_PATH.format(prefix=prefix)
     fn_store = FMT_TEST_OSM_STORE.format(prefix)
@@ -1301,7 +1268,7 @@ def prep_osmlayer_test(area_id, datapath):
     layers = extract_osmlayers(area_id)
 
     df = pd.read_csv(fn_list, index_col='ImageId')
-    logger.info("Prep osm container: {}".format(fn_store))
+    logger.info(f"Prep osm container: {fn_store}")
     with tb.open_file(fn_store, 'w') as f:
         df_sz = len(df)
         for image_id in tqdm.tqdm(df.index, total=df_sz):
@@ -1332,7 +1299,7 @@ def prep_osmlayer_test(area_id, datapath):
                 im = masks[x0:x0+INPUT_SIZE, y0:y0+INPUT_SIZE]
                 assert im.shape == (256, 256, len(layers))
 
-                slice_id = image_id + "_{}".format(slice_pos)
+                slice_id = image_id + f"_{slice_pos}"
                 atom = tb.Atom.from_dtype(im.dtype)
                 filters = tb.Filters(complib='blosc', complevel=9)
                 ds = f.create_carray(f.root,
@@ -1345,7 +1312,7 @@ def prep_osmlayer_test(area_id, datapath):
 
 def prep_osmlayer_train(area_id, datapath, is_valtrain=False):
     prefix = area_id_to_prefix(area_id)
-    logger.info("prep_osmlayer_train for {}".format(prefix))
+    logger.info(f"prep_osmlayer_train for {prefix}")
 
     if is_valtrain:
         fn_list = FMT_VALTRAIN_IMAGELIST_PATH.format(prefix=prefix)
@@ -1357,7 +1324,7 @@ def prep_osmlayer_train(area_id, datapath, is_valtrain=False):
     layers = extract_osmlayers(area_id)
 
     df = pd.read_csv(fn_list, index_col='ImageId')
-    logger.info("Prep osm container: {}".format(fn_store))
+    logger.info(f"Prep osm container: {fn_store}")
     with tb.open_file(fn_store, 'w') as f:
         df_sz = len(df)
         for image_id in tqdm.tqdm(df.index, total=df_sz):
@@ -1388,7 +1355,7 @@ def prep_osmlayer_train(area_id, datapath, is_valtrain=False):
                 im = masks[x0:x0+INPUT_SIZE, y0:y0+INPUT_SIZE]
                 assert im.shape == (256, 256, len(layers))
 
-                slice_id = image_id + "_{}".format(slice_pos)
+                slice_id = image_id + f"_{slice_pos}"
                 atom = tb.Atom.from_dtype(im.dtype)
                 filters = tb.Filters(complib='blosc', complevel=9)
                 ds = f.create_carray(f.root,
@@ -1418,17 +1385,17 @@ def preproc_osm(area_id, datapath, is_train=True):
         top=df.sort_values(by='ycenter').iloc[-1]['pos']['maxy'],
         bottom=df.sort_values(by='ycenter').iloc[0]['pos']['miny'],
     )
-    geom_layers = {}
-
     fn_osm = FMT_SERIALIZED_OSMDATA.format(osmprefix)
     if not Path(fn_osm).exists():
+        geom_layers = {}
+
         for layer_name in LAYER_NAMES:
             fn_shp = FMT_OSMSHAPEFILE.format(
                 name=osmprefix,
                 layer=layer_name)
 
             if not Path(fn_shp).exists():
-                raise RuntimeError("shp not found: {}".format(fn_shp))
+                raise RuntimeError(f"shp not found: {fn_shp}")
 
             geom_bounds = shapely.geometry.Polygon([
                 (map_bound.left, map_bound.top),
@@ -1437,7 +1404,7 @@ def preproc_osm(area_id, datapath, is_train=True):
                 (map_bound.left, map_bound.bottom),
             ])
             with fiona.open(fn_shp, 'r') as vector:
-                print("{}: {}".format(layer_name, len(vector)))
+                print(f"{layer_name}: {len(vector)}")
                 geoms = []
                 for feat in tqdm.tqdm(vector, total=len(vector)):
                     try:
@@ -1454,10 +1421,7 @@ def preproc_osm(area_id, datapath, is_train=True):
                     except:
                         pass
 
-                print("{}: {} -> {}".format(
-                    layer_name,
-                    len(vector),
-                    len(geoms)))
+                print(f"{layer_name}: {len(vector)} -> {len(geoms)}")
                 geom_layers[layer_name] = geoms
 
         with open(fn_osm, 'wb') as f:
@@ -1477,7 +1441,7 @@ def testmerge(testonly):
         prefix = area_id_to_prefix(area_id)
         fn_out = FMT_TESTPOLY_PATH.format(prefix)
         if not Path(fn_out).exists():
-            logger.info("Required file not found: {}".format(fn_out))
+            logger.info(f"Required file not found: {fn_out}")
             sys.exit(1)
 
     if not testonly:
@@ -1486,7 +1450,7 @@ def testmerge(testonly):
             prefix = area_id_to_prefix(area_id)
             fn_out = FMT_VALTESTPOLY_PATH.format(prefix)
             if not Path(fn_out).exists():
-                logger.info("Required file not found: {}".format(fn_out))
+                logger.info(f"Required file not found: {fn_out}")
                 sys.exit(1)
 
     # merge files: test poly
@@ -1532,8 +1496,7 @@ def testmerge(testonly):
                 line = f.readline()
                 if area_id == 2:
                     rows.append(line)
-                for line in f:
-                    rows.append(line)
+                rows.extend(iter(f))
         fn_out = FMT_VALTESTTRUTH_OVALL_PATH
         with open(fn_out, 'w') as f:
             for line in rows:
@@ -1544,10 +1507,10 @@ def testmerge(testonly):
 @click.argument('area_id', type=int)
 def testproc(area_id):
     prefix = area_id_to_prefix(area_id)
-    logger.info(">>>> Test proc for {}".format(prefix))
+    logger.info(f">>>> Test proc for {prefix}")
 
     _internal_test(area_id)
-    logger.info(">>>> Test proc for {} ... done".format(prefix))
+    logger.info(f">>>> Test proc for {prefix} ... done")
 
 
 @cli.command()
@@ -1574,33 +1537,30 @@ def validate_city_fscore(area_id, epoch, th, predict):
 def evalfscore(datapath):
     area_id = directory_name_to_area_id(datapath)
     prefix = area_id_to_prefix(area_id)
-    logger.info("Evaluate fscore on validation set: {}".format(prefix))
+    logger.info(f"Evaluate fscore on validation set: {prefix}")
 
-    # for each epoch
-    # if not Path(FMT_VALMODEL_EVALHIST.format(prefix)).exists():
-    if True:
-        df_hist = pd.read_csv(FMT_VALMODEL_HIST.format(prefix))
-        df_hist.loc[:, 'epoch'] = list(range(1, len(df_hist) + 1))
+    df_hist = pd.read_csv(FMT_VALMODEL_HIST.format(prefix))
+    df_hist.loc[:, 'epoch'] = list(range(1, len(df_hist) + 1))
 
-        rows = []
-        for zero_base_epoch in range(0, len(df_hist)):
-            logger.info(">>> Epoch: {}".format(zero_base_epoch))
+    rows = []
+    for zero_base_epoch in range(0, len(df_hist)):
+        logger.info(f">>> Epoch: {zero_base_epoch}")
 
-            _internal_validate_fscore_wo_pred_file(
-                area_id,
-                epoch=zero_base_epoch,
-                enable_tqdm=True,
-                min_th=MIN_POLYGON_AREA)
-            evaluate_record = _calc_fscore_per_aoi(area_id)
-            evaluate_record['zero_base_epoch'] = zero_base_epoch
-            evaluate_record['min_area_th'] = MIN_POLYGON_AREA
-            evaluate_record['area_id'] = area_id
-            logger.info("\n" + json.dumps(evaluate_record, indent=4))
-            rows.append(evaluate_record)
+        _internal_validate_fscore_wo_pred_file(
+            area_id,
+            epoch=zero_base_epoch,
+            enable_tqdm=True,
+            min_th=MIN_POLYGON_AREA)
+        evaluate_record = _calc_fscore_per_aoi(area_id)
+        evaluate_record['zero_base_epoch'] = zero_base_epoch
+        evaluate_record['min_area_th'] = MIN_POLYGON_AREA
+        evaluate_record['area_id'] = area_id
+        logger.info("\n" + json.dumps(evaluate_record, indent=4))
+        rows.append(evaluate_record)
 
-        pd.DataFrame(rows).to_csv(
-            FMT_VALMODEL_EVALHIST.format(prefix),
-            index=False)
+    pd.DataFrame(rows).to_csv(
+        FMT_VALMODEL_EVALHIST.format(prefix),
+        index=False)
 
     # find best min-poly-threshold
     df_evalhist = pd.read_csv(FMT_VALMODEL_EVALHIST.format(prefix))
@@ -1611,7 +1571,7 @@ def evalfscore(datapath):
     # optimize min area th
     rows = []
     for th in [30, 60, 90, 120, 150, 180, 210, 240]:
-        logger.info(">>> TH: {}".format(th))
+        logger.info(f">>> TH: {th}")
         predict_flag = False
         if th == 30:
             predict_flag = True
@@ -1633,7 +1593,7 @@ def evalfscore(datapath):
         FMT_VALMODEL_EVALTHHIST.format(prefix),
         index=False)
 
-    logger.info("Evaluate fscore on validation set: {} .. done".format(prefix))
+    logger.info(f"Evaluate fscore on validation set: {prefix} .. done")
 
 
 @cli.command()
@@ -1641,7 +1601,7 @@ def evalfscore(datapath):
 def validate(datapath):
     area_id = directory_name_to_area_id(datapath)
     prefix = area_id_to_prefix(area_id)
-    logger.info(">> validate sub-command: {}".format(prefix))
+    logger.info(f">> validate sub-command: {prefix}")
 
     dict_n_osm_layers = {
         2: 4,
@@ -1653,7 +1613,7 @@ def validate(datapath):
     n_input_layers = 8 + osm_layers
 
     prefix = area_id_to_prefix(area_id)
-    logger.info("Validate step for {}".format(prefix))
+    logger.info(f"Validate step for {prefix}")
     X_mean = get_mul_mean_image(area_id)
     X_osm_mean = np.zeros((osm_layers, INPUT_SIZE, INPUT_SIZE))
     X_mean = np.vstack([X_mean, X_osm_mean])
@@ -1700,7 +1660,7 @@ def validate(datapath):
     # Save evaluation history
     pd.DataFrame(model_history.history).to_csv(
         FMT_VALMODEL_HIST.format(prefix), index=False)
-    logger.info(">> validate sub-command: {} ... Done".format(prefix))
+    logger.info(f">> validate sub-command: {prefix} ... Done")
 
 
 @cli.command()

@@ -6,7 +6,7 @@ import warnings
 
 
 MODEL_NAME = 'v17'
-MODEL_DIR = "/data/working/models/{}".format(MODEL_NAME)
+MODEL_DIR = f"/data/working/models/{MODEL_NAME}"
 FMT_TESTPOLY_PATH = MODEL_DIR + "/{}_poly.csv"
 
 LOGFORMAT = '%(asctime)s %(levelname)s %(message)s'
@@ -79,7 +79,7 @@ def _merge(area_id_list, output_fn):
         prefix = area_id_to_prefix(area_id)
         fn_out = FMT_TESTPOLY_PATH.format(prefix)
         if not Path(fn_out).exists():
-            logger.info("Required file not found: {}".format(fn_out))
+            logger.info(f"Required file not found: {fn_out}")
             sys.exit(1)
 
     # merge files

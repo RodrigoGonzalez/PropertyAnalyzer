@@ -8,6 +8,7 @@ Image preprocessing module
 
 Author: Kohei <i@ho.lc>
 """
+
 from logging import getLogger, Formatter, StreamHandler, INFO
 from pathlib import Path
 import math
@@ -33,11 +34,11 @@ STRIDE_SZ = 197
 BASE_DIR = "/data/train"
 BASE_TEST_DIR = "/data/test"
 WORKING_DIR = "/data/working"
-IMAGE_DIR = "/data/working/images/{}".format('v12')
-V5_IMAGE_DIR = "/data/working/images/{}".format('v5')
+IMAGE_DIR = '/data/working/images/v12'
+V5_IMAGE_DIR = '/data/working/images/v5'
 
-MODEL_DIR = "/data/working/models/{}".format(MODEL_NAME)
-FN_SOLUTION_CSV = "/data/output/{}.csv".format(MODEL_NAME)
+MODEL_DIR = f"/data/working/models/{MODEL_NAME}"
+FN_SOLUTION_CSV = f"/data/output/{MODEL_NAME}.csv"
 
 # Input files
 FMT_TRAIN_SUMMARY_PATH = str(
@@ -169,8 +170,7 @@ def __load_band_cut_th(band_fn, bandsz=3):
     for area_id, row in df.iterrows():
         for chan_i in range(bandsz):
             all_band_cut_th[area_id][chan_i] = dict(
-                min=row['chan{}_min'.format(chan_i)],
-                max=row['chan{}_max'.format(chan_i)],
+                min=row[f'chan{chan_i}_min'], max=row[f'chan{chan_i}_max']
             )
     return all_band_cut_th
 
@@ -181,12 +181,10 @@ def __load_mul_bandstats(area_id):
     df_stats = pd.read_csv(fn_stats, index_col='area_id')
     r = df_stats.loc[area_id]
 
-    stats_dict = {}
-    for chan_i in range(8):
-        stats_dict[chan_i] = dict(
-            min=r['chan{}_min'.format(chan_i)],
-            max=r['chan{}_max'.format(chan_i)])
-    return stats_dict
+    return {
+        chan_i: dict(min=r[f'chan{chan_i}_min'], max=r[f'chan{chan_i}_max'])
+        for chan_i in range(8)
+    }
 
 
 def get_slice_8chan_im(image_id, datapath, bandstats, is_test=False):
@@ -221,8 +219,7 @@ def get_slice_mask_im(df, image_id):
     im_mask = np.zeros((650, 650))
 
     if len(df[df.ImageId == image_id]) == 0:
-        raise RuntimeError("ImageId not found on summaryData: {}".format(
-            image_id))
+        raise RuntimeError(f"ImageId not found on summaryData: {image_id}")
 
     for idx, row in df[df.ImageId == image_id].iterrows():
         shape_obj = shapely.wkt.loads(row.PolygonWKT_Pix)
@@ -254,7 +251,7 @@ def get_slice_mask_im(df, image_id):
 
 def prep_image_mask(area_id, is_valtrain=True):
     prefix = area_id_to_prefix(area_id)
-    logger.info("prep_image_mask for {}".format(prefix))
+    logger.info(f"prep_image_mask for {prefix}")
     if is_valtrain:
         fn_list = FMT_VALTRAIN_IMAGELIST_PATH.format(prefix=prefix)
         fn_mask = FMT_VALTRAIN_MASK_STORE.format(prefix)
@@ -264,7 +261,7 @@ def prep_image_mask(area_id, is_valtrain=True):
 
     df = pd.read_csv(fn_list, index_col='ImageId')
     df_summary = load_train_summary_data(area_id)
-    logger.info("Prepare image container: {}".format(fn_mask))
+    logger.info(f"Prepare image container: {fn_mask}")
     with tb.open_file(fn_mask, 'w') as f:
         for image_id in tqdm.tqdm(df.index, total=len(df)):
             for pos, im_mask in get_slice_mask_im(df_summary, image_id):
@@ -291,13 +288,13 @@ def prep_mul_image_store_train(area_id, datapath, is_valtrain=True):
 
     df_list = pd.read_csv(fn_list, index_col='ImageId')
 
-    logger.info("Image store file: {}".format(fn_store))
+    logger.info(f"Image store file: {fn_store}")
     with tb.open_file(fn_store, 'w') as f:
         for image_id in tqdm.tqdm(df_list.index, total=len(df_list)):
             for slice_pos, im in get_slice_8chan_im(image_id,
                                                     datapath,
                                                     bandstats_mul):
-                slice_id = '{}_{}'.format(image_id, slice_pos)
+                slice_id = f'{image_id}_{slice_pos}'
                 atom = tb.Atom.from_dtype(im.dtype)
                 filters = tb.Filters(complib='blosc', complevel=9)
                 ds = f.create_carray(f.root, slice_id, atom, im.shape,
@@ -315,14 +312,14 @@ def prep_mul_image_store_test(area_id, datapath):
 
     df_list = pd.read_csv(fn_list, index_col='ImageId')
 
-    logger.info("Image store file: {}".format(fn_store))
+    logger.info(f"Image store file: {fn_store}")
     with tb.open_file(fn_store, 'w') as f:
         for image_id in tqdm.tqdm(df_list.index, total=len(df_list)):
             for slice_pos, im in get_slice_8chan_im(image_id,
                                                     datapath,
                                                     bandstats_mul,
                                                     is_test=True):
-                slice_id = '{}_{}'.format(image_id, slice_pos)
+                slice_id = f'{image_id}_{slice_pos}'
                 atom = tb.Atom.from_dtype(im.dtype)
                 filters = tb.Filters(complib='blosc', complevel=9)
                 ds = f.create_carray(f.root, slice_id, atom, im.shape,
@@ -332,7 +329,7 @@ def prep_mul_image_store_test(area_id, datapath):
 
 def prep_valtrain_test_slice_image(area_id):
     prefix = area_id_to_prefix(area_id)
-    logger.info("prep_valtrain_test_slice_image for {}".format(prefix))
+    logger.info(f"prep_valtrain_test_slice_image for {prefix}")
 
     df_train = pd.read_csv(
         FMT_VALTRAIN_IMAGELIST_PATH.format(prefix=prefix),
@@ -345,12 +342,12 @@ def prep_valtrain_test_slice_image(area_id):
     df_summary = load_train_summary_data(area_id)
 
     fn = FMT_VALTRAIN_IM_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     if not Path(fn).exists():
         with tb.open_file(fn, 'w') as f:
             for image_id in tqdm.tqdm(df_train.index, total=len(df_train)):
                 for slice_pos, im in get_slice_3chan_im(image_id, band_cut_th):
-                    slice_id = image_id + "_{}".format(slice_pos)
+                    slice_id = image_id + f"_{slice_pos}"
                     atom = tb.Atom.from_dtype(im.dtype)
                     filters = tb.Filters(complib='blosc', complevel=9)
                     ds = f.create_carray(f.root, slice_id, atom, im.shape,
@@ -358,12 +355,12 @@ def prep_valtrain_test_slice_image(area_id):
                     ds[:] = im
 
     fn = FMT_VALTEST_IM_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     if not Path(fn).exists():
         with tb.open_file(fn, 'w') as f:
             for image_id in tqdm.tqdm(df_test.index, total=len(df_test)):
                 for slice_pos, im in get_slice_3chan_im(image_id, band_cut_th):
-                    slice_id = image_id + "_{}".format(slice_pos)
+                    slice_id = image_id + f"_{slice_pos}"
                     atom = tb.Atom.from_dtype(im.dtype)
                     filters = tb.Filters(complib='blosc', complevel=9)
                     ds = f.create_carray(f.root, slice_id, atom, im.shape,
@@ -371,7 +368,7 @@ def prep_valtrain_test_slice_image(area_id):
                     ds[:] = im
 
     fn = FMT_VALTEST_MASK_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     if not Path(fn).exists():
         with tb.open_file(fn, 'w') as f:
             for image_id in tqdm.tqdm(df_test.index, total=len(df_test)):
@@ -385,15 +382,14 @@ def prep_valtrain_test_slice_image(area_id):
 
 
 def calc_mul_multiband_cut_threshold(area_id, datapath):
-    rows = []
     band_cut_th = __calc_mul_multiband_cut_threshold(area_id, datapath)
     prefix = area_id_to_prefix(area_id)
     row = dict(prefix=area_id_to_prefix(area_id))
     row['area_id'] = area_id
     for chan_i in band_cut_th.keys():
-        row['chan{}_max'.format(chan_i)] = band_cut_th[chan_i]['max']
-        row['chan{}_min'.format(chan_i)] = band_cut_th[chan_i]['min']
-    rows.append(row)
+        row[f'chan{chan_i}_max'] = band_cut_th[chan_i]['max']
+        row[f'chan{chan_i}_min'] = band_cut_th[chan_i]['min']
+    rows = [row]
     pd.DataFrame(rows).to_csv(
         FMT_MUL_BANDCUT_TH_PATH.format(prefix), index=False)
 
@@ -462,15 +458,13 @@ def get_train_image_path_from_imageid(image_id, datapath, mul=False):
 
 
 def image_id_to_prefix(image_id):
-    prefix = image_id.split('img')[0][:-1]
-    return prefix
+    return image_id.split('img')[0][:-1]
 
 
 def load_train_summary_data(area_id):
     prefix = area_id_to_prefix(area_id)
     fn = FMT_TRAIN_SUMMARY_PATH.format(prefix=prefix)
-    df = pd.read_csv(fn)
-    return df
+    return pd.read_csv(fn)
 
 
 def split_val_train_test(area_id):
@@ -505,7 +499,7 @@ def prep_mulmean(area_id, datapath):
     image_list = pd.read_csv(FMT_VALTRAIN_IMAGELIST_PATH.format(
         prefix=prefix)).ImageId.tolist()
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(image_list):
+        for image_id in image_list:
             slice_pos = 5
             slice_id = image_id + '_' + str(slice_pos)
             im = np.array(f.get_node('/' + slice_id))
@@ -518,8 +512,8 @@ def prep_mulmean(area_id, datapath):
     image_list = pd.read_csv(FMT_VALTEST_IMAGELIST_PATH.format(
         prefix=prefix)).ImageId.tolist()
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(image_list):
-            slice_pos = 5
+        slice_pos = 5
+        for image_id in image_list:
             slice_id = image_id + '_' + str(slice_pos)
             im = np.array(f.get_node('/' + slice_id))
             im = np.swapaxes(im, 0, 2)
@@ -529,7 +523,7 @@ def prep_mulmean(area_id, datapath):
     X_mean = np.array(X_train).mean(axis=0)
 
     fn = FMT_MULMEAN.format(prefix)
-    logger.info("Prepare mean image: {}".format(fn))
+    logger.info(f"Prepare mean image: {fn}")
     with tb.open_file(fn, 'w') as f:
         atom = tb.Atom.from_dtype(X_mean.dtype)
         filters = tb.Filters(complib='blosc', complevel=9)
@@ -552,7 +546,7 @@ def preproc_train(datapath):
     """ train.sh """
     area_id = directory_name_to_area_id(datapath)
     prefix = area_id_to_prefix(area_id)
-    logger.info("Preproc for training on {}".format(prefix))
+    logger.info(f"Preproc for training on {prefix}")
 
     # Working directory
     working_dir = Path(FMT_VALTRAIN_MASK_STORE.format(prefix)).parent
@@ -600,7 +594,7 @@ def preproc_train(datapath):
         prep_mulmean(area_id, datapath)
 
     # DONE!
-    logger.info("Preproc for training on {} ... done".format(prefix))
+    logger.info(f"Preproc for training on {prefix} ... done")
 
 
 @cli.command()
@@ -609,7 +603,7 @@ def preproc_test(datapath):
     """ test.sh """
     area_id = directory_name_to_area_id(datapath)
     prefix = area_id_to_prefix(area_id)
-    logger.info("preproc_test for {}".format(prefix))
+    logger.info(f"preproc_test for {prefix}")
 
     # Imagelist
     assert Path(FMT_TEST_IMAGELIST_PATH.format(
@@ -622,7 +616,7 @@ def preproc_test(datapath):
         logger.info("Generate MUL_STORE (test)")
         prep_mul_image_store_test(area_id, datapath)
 
-    logger.info("preproc_test for {} ... done".format(prefix))
+    logger.info(f"preproc_test for {prefix} ... done")
 
 
 if __name__ == '__main__':

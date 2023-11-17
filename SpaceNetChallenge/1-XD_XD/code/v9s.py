@@ -6,6 +6,7 @@ v9s model
 
 Author: Kohei <i@ho.lc>
 """
+
 from logging import getLogger, Formatter, StreamHandler, INFO, FileHandler
 from pathlib import Path
 import subprocess
@@ -47,9 +48,9 @@ INPUT_SIZE = 256
 LOGFORMAT = '%(asctime)s %(levelname)s %(message)s'
 BASE_DIR = "/data/train"
 WORKING_DIR = "/data/working"
-IMAGE_DIR = "/data/working/images/{}".format('v5')
-MODEL_DIR = "/data/working/models/{}".format(MODEL_NAME)
-FN_SOLUTION_CSV = "/data/output/{}.csv".format(MODEL_NAME)
+IMAGE_DIR = '/data/working/images/v5'
+MODEL_DIR = f"/data/working/models/{MODEL_NAME}"
+FN_SOLUTION_CSV = f"/data/output/{MODEL_NAME}.csv"
 
 # Parameters
 MIN_POLYGON_AREA = 30
@@ -127,7 +128,7 @@ handler = StreamHandler()
 handler.setLevel(INFO)
 handler.setFormatter(Formatter(LOGFORMAT))
 
-fh_handler = FileHandler(".{}.log".format(MODEL_NAME))
+fh_handler = FileHandler(f".{MODEL_NAME}.log")
 fh_handler.setFormatter(Formatter(LOGFORMAT))
 logger = getLogger('spacenet2')
 logger.setLevel(INFO)
@@ -182,8 +183,7 @@ def __load_band_cut_th(band_fn, bandsz=3):
     for area_id, row in df.iterrows():
         for chan_i in range(bandsz):
             all_band_cut_th[area_id][chan_i] = dict(
-                min=row['chan{}_min'.format(chan_i)],
-                max=row['chan{}_max'.format(chan_i)],
+                min=row[f'chan{chan_i}_min'], max=row[f'chan{chan_i}_max']
             )
     return all_band_cut_th
 
@@ -213,7 +213,7 @@ def _calc_fscore_per_aoi(area_id):
         stderr=subprocess.PIPE,
     )
     stdout_data, stderr_data = proc.communicate()
-    lines = [line for line in stdout_data.decode('utf8').split('\n')[-10:]]
+    lines = list(stdout_data.decode('utf8').split('\n')[-10:])
 
     """
 Overall F-score : 0.85029
@@ -300,11 +300,10 @@ def _get_model_parameter(area_id):
         ascending=False,
     ).iloc[0]
 
-    param = dict(
+    return dict(
         fn_epoch=int(best_row['zero_base_epoch']),
         min_poly_area=int(best_row['min_area_th']),
     )
-    return param
 
 
 def get_resized_raster_3chan_image(image_id, band_cut_th=None):
@@ -373,7 +372,7 @@ def train_test_image_prep(area_id):
     df_summary = _load_train_summary_data(area_id)
 
     fn = FMT_TRAIN_IM_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     with tb.open_file(fn, 'w') as f:
         for image_id in tqdm.tqdm(df_train.index, total=len(df_train)):
             im = get_resized_raster_3chan_image(image_id, band_cut_th)
@@ -384,7 +383,7 @@ def train_test_image_prep(area_id):
             ds[:] = im
 
     fn = FMT_TEST_IM_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     with tb.open_file(fn, 'w') as f:
         for image_id in tqdm.tqdm(df_test.index, total=len(df_test)):
             im = get_resized_raster_3chan_image_test(image_id, band_cut_th)
@@ -395,7 +394,7 @@ def train_test_image_prep(area_id):
             ds[:] = im
 
     fn = FMT_TRAIN_MASK_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     with tb.open_file(fn, 'w') as f:
         for image_id in tqdm.tqdm(df_train.index, total=len(df_train)):
             im_mask = image_mask_resized_from_summary(df_summary, image_id)
@@ -408,7 +407,7 @@ def train_test_image_prep(area_id):
 
 def valtrain_test_image_prep(area_id):
     prefix = area_id_to_prefix(area_id)
-    logger.info("valtrain_test_image_prep for {}".format(prefix))
+    logger.info(f"valtrain_test_image_prep for {prefix}")
 
     df_train = pd.read_csv(
         FMT_VALTRAIN_IMAGELIST_PATH.format(prefix=prefix),
@@ -421,7 +420,7 @@ def valtrain_test_image_prep(area_id):
     df_summary = _load_train_summary_data(area_id)
 
     fn = FMT_VALTRAIN_IM_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     with tb.open_file(fn, 'w') as f:
         for image_id in tqdm.tqdm(df_train.index, total=len(df_train)):
             im = get_resized_raster_3chan_image(image_id, band_cut_th)
@@ -432,7 +431,7 @@ def valtrain_test_image_prep(area_id):
             ds[:] = im
 
     fn = FMT_VALTEST_IM_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     with tb.open_file(fn, 'w') as f:
         for image_id in tqdm.tqdm(df_test.index, total=len(df_test)):
             im = get_resized_raster_3chan_image(image_id, band_cut_th)
@@ -443,7 +442,7 @@ def valtrain_test_image_prep(area_id):
             ds[:] = im
 
     fn = FMT_VALTRAIN_MASK_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     with tb.open_file(fn, 'w') as f:
         for image_id in tqdm.tqdm(df_train.index, total=len(df_train)):
             im_mask = image_mask_resized_from_summary(df_summary, image_id)
@@ -454,7 +453,7 @@ def valtrain_test_image_prep(area_id):
             ds[:] = im_mask
 
     fn = FMT_VALTEST_MASK_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     with tb.open_file(fn, 'w') as f:
         for image_id in tqdm.tqdm(df_test.index, total=len(df_test)):
             im_mask = image_mask_resized_from_summary(df_summary, image_id)
@@ -480,7 +479,7 @@ def train_test_mul_image_prep(area_id):
     df_summary = _load_train_summary_data(area_id)
 
     fn = FMT_TRAIN_MUL_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     with tb.open_file(fn, 'w') as f:
         for image_id in tqdm.tqdm(df_train.index, total=len(df_train)):
             im = get_resized_raster_8chan_image(
@@ -492,7 +491,7 @@ def train_test_mul_image_prep(area_id):
             ds[:] = im
 
     fn = FMT_TEST_MUL_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     with tb.open_file(fn, 'w') as f:
         for image_id in tqdm.tqdm(df_test.index, total=len(df_test)):
             im = get_resized_raster_8chan_image_test(
@@ -506,7 +505,7 @@ def train_test_mul_image_prep(area_id):
 
 def valtrain_test_mul_image_prep(area_id):
     prefix = area_id_to_prefix(area_id)
-    logger.info("valtrain_test_image_prep for {}".format(prefix))
+    logger.info(f"valtrain_test_image_prep for {prefix}")
 
     df_train = pd.read_csv(
         FMT_VALTRAIN_IMAGELIST_PATH.format(prefix=prefix),
@@ -521,7 +520,7 @@ def valtrain_test_mul_image_prep(area_id):
     df_summary = _load_train_summary_data(area_id)
 
     fn = FMT_VALTRAIN_MUL_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     with tb.open_file(fn, 'w') as f:
         for image_id in tqdm.tqdm(df_train.index, total=len(df_train)):
             im = get_resized_raster_8chan_image(
@@ -533,7 +532,7 @@ def valtrain_test_mul_image_prep(area_id):
             ds[:] = im
 
     fn = FMT_VALTEST_MUL_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     with tb.open_file(fn, 'w') as f:
         for image_id in tqdm.tqdm(df_test.index, total=len(df_test)):
             im = get_resized_raster_8chan_image(
@@ -548,8 +547,7 @@ def valtrain_test_mul_image_prep(area_id):
 def _load_train_summary_data(area_id):
     prefix = area_id_to_prefix(area_id)
     fn = FMT_TRAIN_SUMMARY_PATH.format(prefix=prefix)
-    df = pd.read_csv(fn)
-    return df
+    return pd.read_csv(fn)
 
 
 def split_val_train_test(area_id):
@@ -571,51 +569,37 @@ def split_val_train_test(area_id):
 
 def train_image_id_to_mspec_path(image_id):
     prefix = image_id_to_prefix(image_id)
-    fn = FMT_TRAIN_MSPEC_IMAGE_PATH.format(
-        prefix=prefix,
-        image_id=image_id)
-    return fn
+    return FMT_TRAIN_MSPEC_IMAGE_PATH.format(prefix=prefix, image_id=image_id)
 
 
 def test_image_id_to_mspec_path(image_id):
     prefix = image_id_to_prefix(image_id)
-    fn = FMT_TEST_MSPEC_IMAGE_PATH.format(
-        prefix=prefix,
-        image_id=image_id)
-    return fn
+    return FMT_TEST_MSPEC_IMAGE_PATH.format(prefix=prefix, image_id=image_id)
 
 
 def train_image_id_to_path(image_id):
     prefix = image_id_to_prefix(image_id)
-    fn = FMT_TRAIN_RGB_IMAGE_PATH.format(
-        prefix=prefix,
-        image_id=image_id)
-    return fn
+    return FMT_TRAIN_RGB_IMAGE_PATH.format(prefix=prefix, image_id=image_id)
 
 
 def test_image_id_to_path(image_id):
     prefix = image_id_to_prefix(image_id)
-    fn = FMT_TEST_RGB_IMAGE_PATH.format(
-        prefix=prefix,
-        image_id=image_id)
-    return fn
+    return FMT_TEST_RGB_IMAGE_PATH.format(prefix=prefix, image_id=image_id)
 
 
 def image_id_to_prefix(image_id):
-    prefix = image_id.split('img')[0][:-1]
-    return prefix
+    return image_id.split('img')[0][:-1]
 
 
 def calc_multiband_cut_threshold(area_id):
-    rows = []
     band_cut_th = __calc_multiband_cut_threshold(area_id)
     prefix = area_id_to_prefix(area_id)
     row = dict(prefix=area_id_to_prefix(area_id))
     row['area_id'] = area_id
     for chan_i in band_cut_th.keys():
-        row['chan{}_max'.format(chan_i)] = band_cut_th[chan_i]['max']
-        row['chan{}_min'.format(chan_i)] = band_cut_th[chan_i]['min']
-    rows.append(row)
+        row[f'chan{chan_i}_max'] = band_cut_th[chan_i]['max']
+        row[f'chan{chan_i}_min'] = band_cut_th[chan_i]['min']
+    rows = [row]
     pd.DataFrame(rows).to_csv(FMT_BANDCUT_TH_PATH.format(prefix), index=False)
 
 
@@ -661,15 +645,14 @@ def __calc_multiband_cut_threshold(area_id):
 
 
 def calc_mul_multiband_cut_threshold(area_id):
-    rows = []
     band_cut_th = __calc_mul_multiband_cut_threshold(area_id)
     prefix = area_id_to_prefix(area_id)
     row = dict(prefix=area_id_to_prefix(area_id))
     row['area_id'] = area_id
     for chan_i in band_cut_th.keys():
-        row['chan{}_max'.format(chan_i)] = band_cut_th[chan_i]['max']
-        row['chan{}_min'.format(chan_i)] = band_cut_th[chan_i]['min']
-    rows.append(row)
+        row[f'chan{chan_i}_max'] = band_cut_th[chan_i]['max']
+        row[f'chan{chan_i}_min'] = band_cut_th[chan_i]['min']
+    rows = [row]
     pd.DataFrame(rows).to_csv(
         FMT_MUL_BANDCUT_TH_PATH.format(prefix),
         index=False)
@@ -917,7 +900,7 @@ def _get_train_mul_data(area_id):
     X_train = []
     fn_im = FMT_TRAIN_MUL_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
+        for image_id in df_train.ImageId.tolist():
             im = np.array(f.get_node('/' + image_id))
             im = np.swapaxes(im, 0, 2)
             im = np.swapaxes(im, 1, 2)
@@ -927,7 +910,7 @@ def _get_train_mul_data(area_id):
     y_train = []
     fn_mask = FMT_TRAIN_MASK_STORE.format(prefix)
     with tb.open_file(fn_mask, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
+        for image_id in df_train.ImageId.tolist():
             mask = np.array(f.get_node('/' + image_id))
             mask = (mask > 0.5).astype(np.uint8)
             y_train.append(mask)
@@ -948,14 +931,12 @@ def _get_test_mul_data(area_id):
     X_test = []
     fn_im = FMT_TEST_MUL_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_test.ImageId.tolist()):
+        for image_id in df_test.ImageId.tolist():
             im = np.array(f.get_node('/' + image_id))
             im = np.swapaxes(im, 0, 2)
             im = np.swapaxes(im, 1, 2)
             X_test.append(im)
-    X_test = np.array(X_test)
-
-    return X_test
+    return np.array(X_test)
 
 
 def _get_valtest_mul_data(area_id):
@@ -966,7 +947,7 @@ def _get_valtest_mul_data(area_id):
     X_val = []
     fn_im = FMT_VALTEST_MUL_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_test.ImageId.tolist()):
+        for image_id in df_test.ImageId.tolist():
             im = np.array(f.get_node('/' + image_id))
             im = np.swapaxes(im, 0, 2)
             im = np.swapaxes(im, 1, 2)
@@ -976,7 +957,7 @@ def _get_valtest_mul_data(area_id):
     y_val = []
     fn_mask = FMT_VALTEST_MASK_STORE.format(prefix)
     with tb.open_file(fn_mask, 'r') as f:
-        for idx, image_id in enumerate(df_test.ImageId.tolist()):
+        for image_id in df_test.ImageId.tolist():
             mask = np.array(f.get_node('/' + image_id))
             mask = (mask > 0.5).astype(np.uint8)
             y_val.append(mask)
@@ -994,7 +975,7 @@ def _get_valtrain_mul_data(area_id):
     X_val = []
     fn_im = FMT_VALTRAIN_MUL_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
+        for image_id in df_train.ImageId.tolist():
             im = np.array(f.get_node('/' + image_id))
             im = np.swapaxes(im, 0, 2)
             im = np.swapaxes(im, 1, 2)
@@ -1004,7 +985,7 @@ def _get_valtrain_mul_data(area_id):
     y_val = []
     fn_mask = FMT_VALTRAIN_MASK_STORE.format(prefix)
     with tb.open_file(fn_mask, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
+        for image_id in df_train.ImageId.tolist():
             mask = np.array(f.get_node('/' + image_id))
             mask = (mask > 0.5).astype(np.uint8)
             y_val.append(mask)
@@ -1037,7 +1018,7 @@ def preproc_stage3(area_id):
     X_mean = X.mean(axis=0)
 
     fn = FMT_MULMEAN.format(prefix)
-    logger.info("Prepare mean image: {}".format(fn))
+    logger.info(f"Prepare mean image: {fn}")
     with tb.open_file(fn, 'w') as f:
         atom = tb.Atom.from_dtype(X_mean.dtype)
         filters = tb.Filters(complib='blosc', complevel=9)
@@ -1054,7 +1035,7 @@ def _internal_test_predict_best_param(area_id,
     min_th = param['min_poly_area']
 
     # Prediction phase
-    logger.info("Prediction phase: {}".format(prefix))
+    logger.info(f"Prediction phase: {prefix}")
 
     X_mean = get_mul_mean_image(area_id)
 
@@ -1122,10 +1103,7 @@ def _internal_test(area_id, enable_tqdm=False):
                     line = _remove_interiors(line)
                     f.write(line)
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
 
 def validate_score(area_id):
@@ -1177,10 +1155,7 @@ def validate_score(area_id):
                             row.wkt,
                             row.area_ratio))
                 else:
-                    f.write("{},{},{},0\n".format(
-                        image_id,
-                        -1,
-                        "POLYGON EMPTY"))
+                    f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
         # update fn_out
         with open(fn_out, 'r') as f:
@@ -1347,14 +1322,12 @@ def _get_test_data(area_id):
     X_test = []
     fn_im = FMT_TEST_IM_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_test.ImageId.tolist()):
+        for image_id in df_test.ImageId.tolist():
             im = np.array(f.get_node('/' + image_id))
             im = np.swapaxes(im, 0, 2)
             im = np.swapaxes(im, 1, 2)
             X_test.append(im)
-    X_test = np.array(X_test)
-
-    return X_test
+    return np.array(X_test)
 
 
 def _get_valtest_data(area_id):
@@ -1365,7 +1338,7 @@ def _get_valtest_data(area_id):
     X_val = []
     fn_im = FMT_VALTEST_IM_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_test.ImageId.tolist()):
+        for image_id in df_test.ImageId.tolist():
             im = np.array(f.get_node('/' + image_id))
             im = np.swapaxes(im, 0, 2)
             im = np.swapaxes(im, 1, 2)
@@ -1375,7 +1348,7 @@ def _get_valtest_data(area_id):
     y_val = []
     fn_mask = FMT_VALTEST_MASK_STORE.format(prefix)
     with tb.open_file(fn_mask, 'r') as f:
-        for idx, image_id in enumerate(df_test.ImageId.tolist()):
+        for image_id in df_test.ImageId.tolist():
             mask = np.array(f.get_node('/' + image_id))
             mask = (mask > 0.5).astype(np.uint8)
             y_val.append(mask)
@@ -1393,7 +1366,7 @@ def _get_valtrain_data(area_id):
     X_val = []
     fn_im = FMT_VALTRAIN_IM_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
+        for image_id in df_train.ImageId.tolist():
             im = np.array(f.get_node('/' + image_id))
             im = np.swapaxes(im, 0, 2)
             im = np.swapaxes(im, 1, 2)
@@ -1403,7 +1376,7 @@ def _get_valtrain_data(area_id):
     y_val = []
     fn_mask = FMT_VALTRAIN_MASK_STORE.format(prefix)
     with tb.open_file(fn_mask, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
+        for image_id in df_train.ImageId.tolist():
             mask = np.array(f.get_node('/' + image_id))
             mask = (mask > 0.5).astype(np.uint8)
             y_val.append(mask)
@@ -1439,13 +1412,9 @@ def _internal_validate_predict_best_param(area_id,
                                           enable_tqdm=False):
     param = _get_model_parameter(area_id)
     epoch = param['fn_epoch']
-    y_pred = _internal_validate_predict(
-        area_id,
-        epoch=epoch,
-        save_pred=False,
-        enable_tqdm=enable_tqdm)
-
-    return y_pred
+    return _internal_validate_predict(
+        area_id, epoch=epoch, save_pred=False, enable_tqdm=enable_tqdm
+    )
 
 
 def _internal_validate_predict(area_id,
@@ -1529,10 +1498,7 @@ def _internal_validate_fscore_wo_pred_file(area_id,
                     line = _remove_interiors(line)
                     f.write(line)
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
     # ------------------------
     # Validation solution file
@@ -1581,8 +1547,7 @@ def _internal_validate_fscore(area_id,
 
     fn = FMT_VALTESTPRED_PATH.format(prefix)
     fn_out = FMT_VALTESTPOLY_PATH.format(prefix)
-    with open(fn_out, 'w') as f,\
-            tb.open_file(fn, 'r') as fr:
+    with (open(fn_out, 'w') as f, tb.open_file(fn, 'r') as fr):
 
         y_pred = np.array(fr.get_node('/pred'))
 
@@ -1602,35 +1567,30 @@ def _internal_validate_fscore(area_id,
                     line = _remove_interiors(line)
                     f.write(line)
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
     # ------------------------
     # Validation solution file
     logger.info("Validation solution file")
-    # if not Path(FMT_VALTESTTRUTH_PATH.format(prefix)).exists():
-    if True:
-        fn_true = FMT_TRAIN_SUMMARY_PATH.format(prefix=prefix)
-        df_true = pd.read_csv(fn_true)
-        # # Remove prefix "PAN_"
-        # df_true.loc[:, 'ImageId'] = df_true.ImageId.str[4:]
+    fn_true = FMT_TRAIN_SUMMARY_PATH.format(prefix=prefix)
+    df_true = pd.read_csv(fn_true)
+    # # Remove prefix "PAN_"
+    # df_true.loc[:, 'ImageId'] = df_true.ImageId.str[4:]
 
-        fn_test = FMT_VALTEST_IMAGELIST_PATH.format(prefix=prefix)
-        df_test = pd.read_csv(fn_test)
-        df_test_image_ids = df_test.ImageId.unique()
+    fn_test = FMT_VALTEST_IMAGELIST_PATH.format(prefix=prefix)
+    df_test = pd.read_csv(fn_test)
+    df_test_image_ids = df_test.ImageId.unique()
 
-        fn_out = FMT_VALTESTTRUTH_PATH.format(prefix)
-        with open(fn_out, 'w') as f:
-            f.write("ImageId,BuildingId,PolygonWKT_Pix,Confidence\n")
-            df_true = df_true[df_true.ImageId.isin(df_test_image_ids)]
-            for idx, r in df_true.iterrows():
-                f.write("{},{},\"{}\",{:.6f}\n".format(
-                    r.ImageId,
-                    r.BuildingId,
-                    r.PolygonWKT_Pix,
-                    1.0))
+    fn_out = FMT_VALTESTTRUTH_PATH.format(prefix)
+    with open(fn_out, 'w') as f:
+        f.write("ImageId,BuildingId,PolygonWKT_Pix,Confidence\n")
+        df_true = df_true[df_true.ImageId.isin(df_test_image_ids)]
+        for idx, r in df_true.iterrows():
+            f.write("{},{},\"{}\",{:.6f}\n".format(
+                r.ImageId,
+                r.BuildingId,
+                r.PolygonWKT_Pix,
+                1.0))
 
 
 @click.group()
@@ -1643,7 +1603,7 @@ def cli():
 def validate(datapath):
     area_id = directory_name_to_area_id(datapath)
     prefix = area_id_to_prefix(area_id)
-    logger.info(">> validate sub-command: {}".format(prefix))
+    logger.info(f">> validate sub-command: {prefix}")
 
     X_mean = get_mul_mean_image(area_id)
     X_val, y_val = _get_valtest_mul_data(area_id)
@@ -1682,7 +1642,7 @@ def validate(datapath):
     # Save evaluation history
     pd.DataFrame(model_history.history).to_csv(
         FMT_VALMODEL_HIST.format(prefix), index=False)
-    logger.info(">> validate sub-command: {} ... Done".format(prefix))
+    logger.info(f">> validate sub-command: {prefix} ... Done")
 
 
 @cli.command()
@@ -1691,9 +1651,9 @@ def testproc(datapath):
     area_id = directory_name_to_area_id(datapath)
     prefix = area_id_to_prefix(area_id)
 
-    logger.info(">>>> Test proc for {}".format(prefix))
+    logger.info(f">>>> Test proc for {prefix}")
     _internal_test(area_id)
-    logger.info(">>>> Test proc for {} ... done".format(prefix))
+    logger.info(f">>>> Test proc for {prefix} ... done")
 
 
 @cli.command()
@@ -1701,32 +1661,29 @@ def testproc(datapath):
 def evalfscore(datapath):
     area_id = directory_name_to_area_id(datapath)
     prefix = area_id_to_prefix(area_id)
-    logger.info("Evaluate fscore on validation set: {}".format(prefix))
+    logger.info(f"Evaluate fscore on validation set: {prefix}")
 
-    # for each epoch
-    # if not Path(FMT_VALMODEL_EVALHIST.format(prefix)).exists():
-    if True:
-        df_hist = pd.read_csv(FMT_VALMODEL_HIST.format(prefix))
-        df_hist.loc[:, 'epoch'] = list(range(1, len(df_hist) + 1))
+    df_hist = pd.read_csv(FMT_VALMODEL_HIST.format(prefix))
+    df_hist.loc[:, 'epoch'] = list(range(1, len(df_hist) + 1))
 
-        rows = []
-        for zero_base_epoch in range(0, len(df_hist)):
-            logger.info(">>> Epoch: {}".format(zero_base_epoch))
-            _internal_validate_fscore_wo_pred_file(
-                area_id,
-                epoch=zero_base_epoch,
-                enable_tqdm=True,
-                min_th=MIN_POLYGON_AREA)
-            evaluate_record = _calc_fscore_per_aoi(area_id)
-            evaluate_record['zero_base_epoch'] = zero_base_epoch
-            evaluate_record['min_area_th'] = MIN_POLYGON_AREA
-            evaluate_record['area_id'] = area_id
-            logger.info("\n" + json.dumps(evaluate_record, indent=4))
-            rows.append(evaluate_record)
+    rows = []
+    for zero_base_epoch in range(0, len(df_hist)):
+        logger.info(f">>> Epoch: {zero_base_epoch}")
+        _internal_validate_fscore_wo_pred_file(
+            area_id,
+            epoch=zero_base_epoch,
+            enable_tqdm=True,
+            min_th=MIN_POLYGON_AREA)
+        evaluate_record = _calc_fscore_per_aoi(area_id)
+        evaluate_record['zero_base_epoch'] = zero_base_epoch
+        evaluate_record['min_area_th'] = MIN_POLYGON_AREA
+        evaluate_record['area_id'] = area_id
+        logger.info("\n" + json.dumps(evaluate_record, indent=4))
+        rows.append(evaluate_record)
 
-        pd.DataFrame(rows).to_csv(
-            FMT_VALMODEL_EVALHIST.format(prefix),
-            index=False)
+    pd.DataFrame(rows).to_csv(
+        FMT_VALMODEL_EVALHIST.format(prefix),
+        index=False)
 
     # find best min-poly-threshold
     df_evalhist = pd.read_csv(FMT_VALMODEL_EVALHIST.format(prefix))
@@ -1737,7 +1694,7 @@ def evalfscore(datapath):
     # optimize min area th
     rows = []
     for th in [30, 60, 90, 120, 150, 180, 210, 240]:
-        logger.info(">>> TH: {}".format(th))
+        logger.info(f">>> TH: {th}")
         predict_flag = False
         if th == 30:
             predict_flag = True
@@ -1759,7 +1716,7 @@ def evalfscore(datapath):
         FMT_VALMODEL_EVALTHHIST.format(prefix),
         index=False)
 
-    logger.info("Evaluate fscore on validation set: {} .. done".format(prefix))
+    logger.info(f"Evaluate fscore on validation set: {prefix} .. done")
 
 
 def mask_to_poly(mask, min_polygon_area_th=MIN_POLYGON_AREA):
@@ -1781,10 +1738,7 @@ def mask_to_poly(mask, min_polygon_area_th=MIN_POLYGON_AREA):
             'poly': [mp],
         })
     else:
-        df = pd.DataFrame({
-            'area_size': [p.area for p in mp],
-            'poly': [p for p in mp],
-        })
+        df = pd.DataFrame({'area_size': [p.area for p in mp], 'poly': list(mp)})
 
     df = df[df.area_size > min_polygon_area_th].sort_values(
         by='area_size', ascending=False)
@@ -1819,10 +1773,7 @@ def postproc(area_id):
                         row.wkt,
                         row.area_ratio))
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
 
 def merge():

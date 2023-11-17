@@ -22,7 +22,6 @@ devProfileTab.write_number('D7', 13500000, money_format)
 loanTab.activate()
 
 commencement_date = datetime.date(2016, 1, 1)
-amort_period = 25
 loan_term = 10
 int_rate1 = .045
 
@@ -78,34 +77,62 @@ loanTab.write_formula('F5', '=MONTH(F4)', number_format)
 loanTab.write_formula('F6', '=DAY(F4)', number_format)
 loanTab.write_formula('F7', '=YEAR(F4)', number_format)
 
+amort_period = 25
 loanTab.write_number('C5', amort_period, number_format)
 loanTab.write_number('C6', int_rate1, percent_format)
 loanTab.write_formula('C7', '=PMT(C6/12, C5*12, -C4)', money_format)
 loanTab.write_formula('C8', '=+C7*12', money_format)
 
 for i in range(0, loan_term * 12):
-    loanTab.write_formula(table_row_offset + 3 + i, 0, ('=EDATE(A' +
-                                                        str(table_row_offset + 3 + i) + ', 1)'), date_format)
-    loanTab.write_formula(table_row_offset + 3 + i, 1, ('=ROUND(E' +
-                                                        str(table_row_offset + 3 + i) + '*C6/12,2)'), money_format)
-    loanTab.write_formula(table_row_offset + 3 + i, 2, ('=IF((E' + str(table_row_offset + 3 + i) +
-                                                        '-(C$7-B' + str(table_row_offset + 4 + i) +
-                                                        '))<0,C$7-B' + str(table_row_offset + 4 + i) +
-                                                        '+(E' + str(table_row_offset + 3 + i) +
-                                                        '-(C$7-B' + str(table_row_offset + 4 + i) +
-                                                        ')),C$7-B' + str(table_row_offset + 4 + i) + ')'), money_format)
-    loanTab.write_formula(table_row_offset + 3 + i, 3, ('=B' +
-                                                        str(table_row_offset + 4 + i) + '+C' +
-                                                        str(table_row_offset + 4 + i)), money_format)
-    loanTab.write_formula(table_row_offset + 3 + i, 4, ('=E' + str(table_row_offset + 3 + i) + '-C' +
-                                                        str(table_row_offset + 4 + i)), money_format)
+    loanTab.write_formula(
+        table_row_offset + 3 + i,
+        0,
+        f'=EDATE(A{str(table_row_offset + 3 + i)}, 1)',
+        date_format,
+    )
+    loanTab.write_formula(
+        table_row_offset + 3 + i,
+        1,
+        f'=ROUND(E{str(table_row_offset + 3 + i)}*C6/12,2)',
+        money_format,
+    )
+    loanTab.write_formula(
+        table_row_offset + 3 + i,
+        2,
+        f'=IF((E{str(table_row_offset + 3 + i)}-(C$7-B{str(table_row_offset + 4 + i)}))<0,C$7-B{str(table_row_offset + 4 + i)}+(E{str(table_row_offset + 3 + i)}-(C$7-B{str(table_row_offset + 4 + i)})),C$7-B{str(table_row_offset + 4 + i)})',
+        money_format,
+    )
+    loanTab.write_formula(
+        table_row_offset + 3 + i,
+        3,
+        f'=B{str(table_row_offset + 4 + i)}+C{str(table_row_offset + 4 + i)}',
+        money_format,
+    )
+    loanTab.write_formula(
+        table_row_offset + 3 + i,
+        4,
+        f'=E{str(table_row_offset + 3 + i)}-C{str(table_row_offset + 4 + i)}',
+        money_format,
+    )
     if ((i + 1) % 12 == 0) and i > 0:
-        loanTab.write_formula(table_row_offset + 3 + i, 5, ('=SUM(C' + str(table_row_offset + 4 - 11 + i) + ':C' +
-                                                            str(table_row_offset + 4 + i) + ')'), money_format)
-        loanTab.write_formula(table_row_offset + 3 + i, 6, ('=SUM(B' + str(table_row_offset + 4 - 11 + i) + ':B' +
-                                                            str(table_row_offset + 4 + i) + ')'), money_format)
-        loanTab.write_formula(table_row_offset + 3 + i, 7, ('=SUM(F' + str(table_row_offset + 4 + i) + ':G' +
-                                                            str(table_row_offset + 4 + i) + ')'), money_format)
+        loanTab.write_formula(
+            table_row_offset + 3 + i,
+            5,
+            f'=SUM(C{str(table_row_offset + 4 - 11 + i)}:C{str(table_row_offset + 4 + i)})',
+            money_format,
+        )
+        loanTab.write_formula(
+            table_row_offset + 3 + i,
+            6,
+            f'=SUM(B{str(table_row_offset + 4 - 11 + i)}:B{str(table_row_offset + 4 + i)})',
+            money_format,
+        )
+        loanTab.write_formula(
+            table_row_offset + 3 + i,
+            7,
+            f'=SUM(F{str(table_row_offset + 4 + i)}:G{str(table_row_offset + 4 + i)})',
+            money_format,
+        )
 
 
 loanTab.write_formula(table_row_offset + 2, 4, '=C4', money_format)

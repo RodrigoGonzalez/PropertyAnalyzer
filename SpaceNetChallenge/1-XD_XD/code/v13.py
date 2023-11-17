@@ -6,6 +6,7 @@ v13 model
 
 Author: Kohei <i@ho.lc>
 """
+
 from logging import getLogger, Formatter, StreamHandler, INFO, FileHandler
 from pathlib import Path
 import subprocess
@@ -47,8 +48,8 @@ STRIDE_SZ = 197
 BASE_DIR = "/data/train"
 BASE_TEST_DIR = "/data/test"
 WORKING_DIR = "/data/working"
-IMAGE_DIR = "/data/working/images/{}".format('v12')
-V5_IMAGE_DIR = "/data/working/images/{}".format('v5')
+IMAGE_DIR = '/data/working/images/v12'
+V5_IMAGE_DIR = '/data/working/images/v5'
 
 # ---------------------------------------------------------
 # Parameters
@@ -79,8 +80,8 @@ FMT_TEST_MSPEC_IMAGE_PATH = str(
 
 # ---------------------------------------------------------
 # Preprocessing result
-FMT_RGB_BANDCUT_TH_PATH = IMAGE_DIR + "/rgb_bandcut.csv"
-FMT_MUL_BANDCUT_TH_PATH = IMAGE_DIR + "/mul_bandcut.csv"
+FMT_RGB_BANDCUT_TH_PATH = f"{IMAGE_DIR}/rgb_bandcut.csv"
+FMT_MUL_BANDCUT_TH_PATH = f"{IMAGE_DIR}/mul_bandcut.csv"
 
 # ---------------------------------------------------------
 # Image list, Image container and mask container
@@ -104,7 +105,7 @@ FMT_MULMEAN = IMAGE_DIR + "/{}_mulmean.h5"
 
 # ---------------------------------------------------------
 # Model files
-MODEL_DIR = "/data/working/models/{}".format(MODEL_NAME)
+MODEL_DIR = f"/data/working/models/{MODEL_NAME}"
 FMT_VALMODEL_PATH = MODEL_DIR + "/{}_val_weights.h5"
 FMT_FULLMODEL_PATH = MODEL_DIR + "/{}_full_weights.h5"
 FMT_VALMODEL_HIST = MODEL_DIR + "/{}_val_hist.csv"
@@ -120,7 +121,7 @@ FMT_VALTESTTRUTH_PATH = MODEL_DIR + "/{}_eval_poly_truth.csv"
 FMT_VALTESTPOLY_OVALL_PATH = MODEL_DIR + "/eval_poly.csv"
 FMT_VALTESTTRUTH_OVALL_PATH = MODEL_DIR + "/eval_poly_truth.csv"
 FMT_TESTPOLY_PATH = MODEL_DIR + "/{}_poly.csv"
-FN_SOLUTION_CSV = "data/output/{}.csv".format(MODEL_NAME)
+FN_SOLUTION_CSV = f"data/output/{MODEL_NAME}.csv"
 
 # ---------------------------------------------------------
 # Model related files (others)
@@ -133,7 +134,7 @@ warnings.simplefilter("ignore", UserWarning)
 handler = StreamHandler()
 handler.setLevel(INFO)
 handler.setFormatter(Formatter('%(asctime)s %(levelname)s %(message)s'))
-fh_handler = FileHandler(".{}.log".format(MODEL_NAME))
+fh_handler = FileHandler(f".{MODEL_NAME}.log")
 fh_handler.setFormatter(Formatter('%(asctime)s %(levelname)s %(message)s'))
 logger = getLogger(__name__)
 logger.setLevel(INFO)
@@ -206,7 +207,7 @@ def _calc_fscore_per_aoi(area_id):
         stderr=subprocess.PIPE,
     )
     stdout_data, stderr_data = proc.communicate()
-    lines = [line for line in stdout_data.decode('utf8').split('\n')[-10:]]
+    lines = list(stdout_data.decode('utf8').split('\n')[-10:])
 
     """
 Overall F-score : 0.85029
@@ -298,11 +299,10 @@ def _get_model_parameter(area_id):
         ascending=False,
     ).iloc[0]
 
-    param = dict(
+    return dict(
         fn_epoch=int(best_row['zero_base_epoch']),
         min_poly_area=int(best_row['min_area_th']),
     )
-    return param
 
 
 def _internal_test_predict_best_param(area_id,
@@ -313,7 +313,7 @@ def _internal_test_predict_best_param(area_id,
     min_th = param['min_poly_area']
 
     # Prediction phase
-    logger.info("Prediction phase: {}".format(prefix))
+    logger.info(f"Prediction phase: {prefix}")
 
     X_mean = get_mul_mean_image(area_id)
 
@@ -394,10 +394,7 @@ def _internal_test(area_id):
                     line = _remove_interiors(line)
                     f.write(line)
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
 
 def _internal_validate_predict_best_param(area_id,
@@ -410,13 +407,9 @@ def _internal_validate_predict_best_param(area_id,
     """
     param = _get_model_parameter(area_id)
     epoch = param['fn_epoch']
-    y_pred = _internal_validate_predict(
-        area_id,
-        epoch=epoch,
-        save_pred=False,
-        enable_tqdm=enable_tqdm)
-
-    return y_pred
+    return _internal_validate_predict(
+        area_id, epoch=epoch, save_pred=False, enable_tqdm=enable_tqdm
+    )
 
 
 def _internal_validate_predict(area_id,
@@ -514,10 +507,7 @@ def _internal_validate_fscore_wo_pred_file(area_id,
                     line = _remove_interiors(line)
                     f.write(line)
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
     # ------------------------
     # Validation solution file
@@ -599,35 +589,30 @@ def _internal_validate_fscore(area_id,
                     line = _remove_interiors(line)
                     f.write(line)
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
     # ------------------------
     # Validation solution file
     logger.info("Validation solution file")
-    # if not Path(FMT_VALTESTTRUTH_PATH.format(prefix)).exists():
-    if True:
-        fn_true = FMT_TRAIN_SUMMARY_PATH.format(prefix=prefix)
-        df_true = pd.read_csv(fn_true)
-        # # Remove prefix "PAN_"
-        # df_true.loc[:, 'ImageId'] = df_true.ImageId.str[4:]
+    fn_true = FMT_TRAIN_SUMMARY_PATH.format(prefix=prefix)
+    df_true = pd.read_csv(fn_true)
+    # # Remove prefix "PAN_"
+    # df_true.loc[:, 'ImageId'] = df_true.ImageId.str[4:]
 
-        fn_test = FMT_VALTEST_IMAGELIST_PATH.format(prefix=prefix)
-        df_test = pd.read_csv(fn_test)
-        df_test_image_ids = df_test.ImageId.unique()
+    fn_test = FMT_VALTEST_IMAGELIST_PATH.format(prefix=prefix)
+    df_test = pd.read_csv(fn_test)
+    df_test_image_ids = df_test.ImageId.unique()
 
-        fn_out = FMT_VALTESTTRUTH_PATH.format(prefix)
-        with open(fn_out, 'w') as f:
-            f.write("ImageId,BuildingId,PolygonWKT_Pix,Confidence\n")
-            df_true = df_true[df_true.ImageId.isin(df_test_image_ids)]
-            for idx, r in df_true.iterrows():
-                f.write("{},{},\"{}\",{:.6f}\n".format(
-                    r.ImageId,
-                    r.BuildingId,
-                    r.PolygonWKT_Pix,
-                    1.0))
+    fn_out = FMT_VALTESTTRUTH_PATH.format(prefix)
+    with open(fn_out, 'w') as f:
+        f.write("ImageId,BuildingId,PolygonWKT_Pix,Confidence\n")
+        df_true = df_true[df_true.ImageId.isin(df_test_image_ids)]
+        for idx, r in df_true.iterrows():
+            f.write("{},{},\"{}\",{:.6f}\n".format(
+                r.ImageId,
+                r.BuildingId,
+                r.PolygonWKT_Pix,
+                1.0))
 
 
 def mask_to_poly(mask, min_polygon_area_th=MIN_POLYGON_AREA):
@@ -646,10 +631,7 @@ def mask_to_poly(mask, min_polygon_area_th=MIN_POLYGON_AREA):
             'poly': [mp],
         })
     else:
-        df = pd.DataFrame({
-            'area_size': [p.area for p in mp],
-            'poly': [p for p in mp],
-        })
+        df = pd.DataFrame({'area_size': [p.area for p in mp], 'poly': list(mp)})
 
     df = df[df.area_size > min_polygon_area_th].sort_values(
         by='area_size', ascending=False)
@@ -905,7 +887,7 @@ def get_train_data(area_id):
     X_train = []
     fn_im = FMT_TRAIN_MUL_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
+        for image_id in df_train.ImageId.tolist():
             for slice_pos in range(9):
                 slice_id = image_id + '_' + str(slice_pos)
 
@@ -918,7 +900,7 @@ def get_train_data(area_id):
     y_train = []
     fn_mask = FMT_TRAIN_MASK_STORE.format(prefix)
     with tb.open_file(fn_mask, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
+        for image_id in df_train.ImageId.tolist():
             for slice_pos in range(9):
                 slice_id = image_id + '_' + str(slice_pos)
 
@@ -939,7 +921,7 @@ def get_test_data(area_id):
     X_test = []
     fn_im = FMT_TEST_MUL_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_test.ImageId.tolist()):
+        for image_id in df_test.ImageId.tolist():
             for slice_pos in range(9):
                 slice_id = image_id + '_' + str(slice_pos)
 
@@ -947,9 +929,7 @@ def get_test_data(area_id):
                 im = np.swapaxes(im, 0, 2)
                 im = np.swapaxes(im, 1, 2)
                 X_test.append(im)
-    X_test = np.array(X_test)
-
-    return X_test
+    return np.array(X_test)
 
 
 def get_valtest_data(area_id):
@@ -960,7 +940,7 @@ def get_valtest_data(area_id):
     X_val = []
     fn_im = FMT_VALTEST_MUL_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_test.ImageId.tolist()):
+        for image_id in df_test.ImageId.tolist():
             for slice_pos in range(9):
                 slice_id = image_id + '_' + str(slice_pos)
                 im = np.array(f.get_node('/' + slice_id))
@@ -972,7 +952,7 @@ def get_valtest_data(area_id):
     y_val = []
     fn_mask = FMT_VALTEST_MASK_STORE.format(prefix)
     with tb.open_file(fn_mask, 'r') as f:
-        for idx, image_id in enumerate(df_test.ImageId.tolist()):
+        for image_id in df_test.ImageId.tolist():
             for slice_pos in range(9):
                 slice_id = image_id + '_' + str(slice_pos)
                 mask = np.array(f.get_node('/' + slice_id))
@@ -992,7 +972,7 @@ def _get_valtrain_data_head(area_id):
     X_val = []
     fn_im = FMT_VALTRAIN_MUL_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
+        for image_id in df_train.ImageId.tolist():
             slice_pos = 5
             slice_id = image_id + '_' + str(slice_pos)
             im = np.array(f.get_node('/' + slice_id))
@@ -1004,8 +984,8 @@ def _get_valtrain_data_head(area_id):
     y_val = []
     fn_mask = FMT_VALTRAIN_MASK_STORE.format(prefix)
     with tb.open_file(fn_mask, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
-            slice_pos = 5
+        slice_pos = 5
+        for image_id in df_train.ImageId.tolist():
             slice_id = image_id + '_' + str(slice_pos)
             mask = np.array(f.get_node('/' + slice_id))
             mask = (mask > 0.5).astype(np.uint8)
@@ -1024,7 +1004,7 @@ def get_valtrain_data(area_id):
     X_val = []
     fn_im = FMT_VALTRAIN_MUL_STORE.format(prefix)
     with tb.open_file(fn_im, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
+        for image_id in df_train.ImageId.tolist():
             for slice_pos in range(9):
                 slice_id = image_id + '_' + str(slice_pos)
                 im = np.array(f.get_node('/' + slice_id))
@@ -1036,7 +1016,7 @@ def get_valtrain_data(area_id):
     y_val = []
     fn_mask = FMT_VALTRAIN_MASK_STORE.format(prefix)
     with tb.open_file(fn_mask, 'r') as f:
-        for idx, image_id in enumerate(df_train.ImageId.tolist()):
+        for image_id in df_train.ImageId.tolist():
             for slice_pos in range(9):
                 slice_id = image_id + '_' + str(slice_pos)
                 mask = np.array(f.get_node('/' + slice_id))
@@ -1054,8 +1034,7 @@ def __load_band_cut_th(band_fn, bandsz=3):
     for area_id, row in df.iterrows():
         for chan_i in range(bandsz):
             all_band_cut_th[area_id][chan_i] = dict(
-                min=row['chan{}_min'.format(chan_i)],
-                max=row['chan{}_max'.format(chan_i)],
+                min=row[f'chan{chan_i}_min'], max=row[f'chan{chan_i}_max']
             )
     return all_band_cut_th
 
@@ -1206,7 +1185,7 @@ def get_slice_mask_im(df, image_id):
 
 def prep_valtrain_test_slice_image(area_id):
     prefix = area_id_to_prefix(area_id)
-    logger.info("prep_valtrain_test_slice_image for {}".format(prefix))
+    logger.info(f"prep_valtrain_test_slice_image for {prefix}")
 
     df_train = pd.read_csv(
         FMT_VALTRAIN_IMAGELIST_PATH.format(prefix=prefix),
@@ -1221,12 +1200,12 @@ def prep_valtrain_test_slice_image(area_id):
         FMT_MUL_BANDCUT_TH_PATH, bandsz=8)[area_id]
 
     fn = FMT_VALTRAIN_MUL_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     if not Path(fn).exists():
         with tb.open_file(fn, 'w') as f:
             for image_id in tqdm.tqdm(df_train.index, total=len(df_train)):
                 for slice_pos, im in get_slice_8chan_im(image_id, band_cut_th):
-                    slice_id = image_id + "_{}".format(slice_pos)
+                    slice_id = image_id + f"_{slice_pos}"
                     atom = tb.Atom.from_dtype(im.dtype)
                     filters = tb.Filters(complib='blosc', complevel=9)
                     ds = f.create_carray(f.root, slice_id, atom, im.shape,
@@ -1234,12 +1213,12 @@ def prep_valtrain_test_slice_image(area_id):
                     ds[:] = im
 
     fn = FMT_VALTEST_MUL_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     if not Path(fn).exists():
         with tb.open_file(fn, 'w') as f:
             for image_id in tqdm.tqdm(df_test.index, total=len(df_test)):
                 for slice_pos, im in get_slice_8chan_im(image_id, band_cut_th):
-                    slice_id = image_id + "_{}".format(slice_pos)
+                    slice_id = image_id + f"_{slice_pos}"
                     atom = tb.Atom.from_dtype(im.dtype)
                     filters = tb.Filters(complib='blosc', complevel=9)
                     ds = f.create_carray(f.root, slice_id, atom, im.shape,
@@ -1250,12 +1229,12 @@ def prep_valtrain_test_slice_image(area_id):
     band_cut_th = __load_band_cut_th(FMT_RGB_BANDCUT_TH_PATH)[area_id]
 
     fn = FMT_VALTRAIN_IM_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     if not Path(fn).exists():
         with tb.open_file(fn, 'w') as f:
             for image_id in tqdm.tqdm(df_train.index, total=len(df_train)):
                 for slice_pos, im in get_slice_3chan_im(image_id, band_cut_th):
-                    slice_id = image_id + "_{}".format(slice_pos)
+                    slice_id = image_id + f"_{slice_pos}"
                     atom = tb.Atom.from_dtype(im.dtype)
                     filters = tb.Filters(complib='blosc', complevel=9)
                     ds = f.create_carray(f.root, slice_id, atom, im.shape,
@@ -1263,12 +1242,12 @@ def prep_valtrain_test_slice_image(area_id):
                     ds[:] = im
 
     fn = FMT_VALTEST_IM_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     if not Path(fn).exists():
         with tb.open_file(fn, 'w') as f:
             for image_id in tqdm.tqdm(df_test.index, total=len(df_test)):
                 for slice_pos, im in get_slice_3chan_im(image_id, band_cut_th):
-                    slice_id = image_id + "_{}".format(slice_pos)
+                    slice_id = image_id + f"_{slice_pos}"
                     atom = tb.Atom.from_dtype(im.dtype)
                     filters = tb.Filters(complib='blosc', complevel=9)
                     ds = f.create_carray(f.root, slice_id, atom, im.shape,
@@ -1276,7 +1255,7 @@ def prep_valtrain_test_slice_image(area_id):
                     ds[:] = im
 
     fn = FMT_VALTRAIN_MASK_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     if not Path(fn).exists():
         with tb.open_file(fn, 'w') as f:
             for image_id in tqdm.tqdm(df_train.index, total=len(df_train)):
@@ -1289,7 +1268,7 @@ def prep_valtrain_test_slice_image(area_id):
                     ds[:] = im_mask
 
     fn = FMT_VALTEST_MASK_STORE.format(prefix)
-    logger.info("Prepare image container: {}".format(fn))
+    logger.info(f"Prepare image container: {fn}")
     if not Path(fn).exists():
         with tb.open_file(fn, 'w') as f:
             for image_id in tqdm.tqdm(df_test.index, total=len(df_test)):

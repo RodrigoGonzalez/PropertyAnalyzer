@@ -2,6 +2,7 @@
 """
 v17.csv (final submission) ... averaging model of v9s, v13 and v16
 """
+
 from logging import getLogger, Formatter, StreamHandler, INFO, FileHandler
 import subprocess
 import importlib
@@ -41,12 +42,12 @@ FMT_TRAIN_SUMMARY_PATH = str(
 
 # ---------------------------------------------------------
 # Image list, Image container and mask container
-V5_IMAGE_DIR = "/data/working/images/{}".format('v5')
+V5_IMAGE_DIR = '/data/working/images/v5'
 FMT_VALTEST_IMAGELIST_PATH = V5_IMAGE_DIR + "/{prefix:s}_valtest_ImageId.csv"
 FMT_TEST_IMAGELIST_PATH = V5_IMAGE_DIR + "/{prefix:s}_test_ImageId.csv"
 
 # Model files
-MODEL_DIR = "/data/working/models/{}".format(MODEL_NAME)
+MODEL_DIR = f"/data/working/models/{MODEL_NAME}"
 FMT_VALTESTPRED_PATH = MODEL_DIR + "/{}_eval_pred.h5"
 FMT_VALTESTPOLY_PATH = MODEL_DIR + "/{}_eval_poly.csv"
 FMT_VALTESTTRUTH_PATH = MODEL_DIR + "/{}_eval_poly_truth.csv"
@@ -57,7 +58,7 @@ FMT_VALMODEL_EVALTHHIST = MODEL_DIR + "/{}_val_evalhist_th.csv"
 # ---------------------------------------------------------
 # Prediction & polygon result
 FMT_TESTPOLY_PATH = MODEL_DIR + "/{}_poly.csv"
-FN_SOLUTION_CSV = "/data/{}.csv".format(MODEL_NAME)
+FN_SOLUTION_CSV = f"/data/{MODEL_NAME}.csv"
 
 # Logger
 warnings.simplefilter("ignore", UserWarning)
@@ -65,7 +66,7 @@ warnings.simplefilter("ignore", FutureWarning)
 handler = StreamHandler()
 handler.setLevel(INFO)
 handler.setFormatter(Formatter(LOGFORMAT))
-fh_handler = FileHandler(".{}.log".format(MODEL_NAME))
+fh_handler = FileHandler(f".{MODEL_NAME}.log")
 fh_handler.setFormatter(Formatter(LOGFORMAT))
 logger = getLogger('spacenet2')
 logger.setLevel(INFO)
@@ -118,10 +119,9 @@ def get_model_parameter(area_id):
         ascending=False,
     ).iloc[0]
 
-    param = dict(
+    return dict(
         min_poly_area=int(best_row['min_area_th']),
     )
-    return param
 
 
 def _remove_interiors(line):
@@ -174,7 +174,7 @@ def _calc_fscore_per_aoi(area_id):
         stderr=subprocess.PIPE,
     )
     stdout_data, stderr_data = proc.communicate()
-    lines = [line for line in stdout_data.decode('utf8').split('\n')[-10:]]
+    lines = list(stdout_data.decode('utf8').split('\n')[-10:])
 
     # Expected lines:
     """
@@ -350,10 +350,7 @@ def _internal_pred_to_poly_file_test(area_id,
                     line = _remove_interiors(line)
                     f.write(line)
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
 
 def _internal_pred_to_poly_file(area_id,
@@ -388,10 +385,7 @@ def _internal_pred_to_poly_file(area_id,
                     line = _remove_interiors(line)
                     f.write(line)
             else:
-                f.write("{},{},{},0\n".format(
-                    image_id,
-                    -1,
-                    "POLYGON EMPTY"))
+                f.write(f"{image_id},-1,POLYGON EMPTY,0\n")
 
     # Validation solution file
     fn_true = FMT_TRAIN_SUMMARY_PATH.format(prefix=prefix)
@@ -433,10 +427,7 @@ def mask_to_poly(mask, min_polygon_area_th=MIN_POLYGON_AREA):
             'poly': [mp],
         })
     else:
-        df = pd.DataFrame({
-            'area_size': [p.area for p in mp],
-            'poly': [p for p in mp],
-        })
+        df = pd.DataFrame({'area_size': [p.area for p in mp], 'poly': list(mp)})
 
     df = df[df.area_size > min_polygon_area_th].sort_values(
         by='area_size', ascending=False)
@@ -460,7 +451,7 @@ def testmerge(testonly):
         prefix = area_id_to_prefix(area_id)
         fn_out = FMT_TESTPOLY_PATH.format(prefix)
         if not Path(fn_out).exists():
-            logger.info("Required file not found: {}".format(fn_out))
+            logger.info(f"Required file not found: {fn_out}")
             sys.exit(1)
 
     if not testonly:
@@ -469,7 +460,7 @@ def testmerge(testonly):
             prefix = area_id_to_prefix(area_id)
             fn_out = FMT_VALTESTPOLY_PATH.format(prefix)
             if not Path(fn_out).exists():
-                logger.info("Required file not found: {}".format(fn_out))
+                logger.info(f"Required file not found: {fn_out}")
                 sys.exit(1)
 
     # merge files: test poly
@@ -515,8 +506,7 @@ def testmerge(testonly):
                 line = f.readline()
                 if area_id == 2:
                     rows.append(line)
-                for line in f:
-                    rows.append(line)
+                rows.extend(iter(f))
         fn_out = FMT_VALTESTTRUTH_OVALL_PATH
         with open(fn_out, 'w') as f:
             for line in rows:
@@ -528,7 +518,7 @@ def testmerge(testonly):
 def testproc(datapath):
     area_id = directory_name_to_area_id(datapath)
     prefix = area_id_to_prefix(area_id)
-    logger.info(">>>> Test proc for {}".format(prefix))
+    logger.info(f">>>> Test proc for {prefix}")
 
     logger.info("import modules")
     v9s = importlib.import_module('v9s')
@@ -561,7 +551,7 @@ def testproc(datapath):
         y_pred,
         min_th=param['min_poly_area'],
     )
-    logger.info(">>>> Test proc for {} ... done".format(prefix))
+    logger.info(f">>>> Test proc for {prefix} ... done")
 
 
 @cli.command()
@@ -569,7 +559,7 @@ def testproc(datapath):
 def evalfscore(datapath):
     area_id = directory_name_to_area_id(datapath)
     prefix = area_id_to_prefix(area_id)
-    logger.info("Evaluate fscore on validation set: {}".format(prefix))
+    logger.info(f"Evaluate fscore on validation set: {prefix}")
 
     logger.info("import modules")
     v9s = importlib.import_module('v9s')
@@ -600,7 +590,7 @@ def evalfscore(datapath):
     # Ensemble individual models and write output files
     rows = []
     for th in [30, 60, 90, 120, 150, 180, 210, 240]:
-        logger.info(">>> TH: {}".format(th))
+        logger.info(f">>> TH: {th}")
 
         _internal_pred_to_poly_file(
             area_id,
@@ -616,7 +606,7 @@ def evalfscore(datapath):
         FMT_VALMODEL_EVALTHHIST.format(prefix),
         index=False)
 
-    logger.info("Evaluate fscore on validation set: {} .. done".format(prefix))
+    logger.info(f"Evaluate fscore on validation set: {prefix} .. done")
 
 
 if __name__ == '__main__':
